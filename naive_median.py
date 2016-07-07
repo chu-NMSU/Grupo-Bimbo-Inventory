@@ -96,7 +96,6 @@ if __name__ == '__main__':
     start_time = time.time()
     print 'reading data'
 
-    # global df_train, df_test
     df_train = pandas.read_csv('data/train.csv')
     df_test = pandas.read_csv('data/test.csv')
     # if sample_test: # use 10% data to evaluate
