@@ -1,3 +1,7 @@
+"""
+use specified group mean/median to predict the demand in the future
+"""
+
 import time
 import sys
 import gc

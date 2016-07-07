@@ -1,3 +1,8 @@
+"""
+basic exploration of data set
+"""
+
+
 import pandas
 import time
 import datetime
