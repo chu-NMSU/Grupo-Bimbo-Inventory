@@ -69,7 +69,7 @@ def predict_demand(x, product_agent_mean, product_mean, all_median):
     else:
         return all_median
 
-def kaggle_group_median_predict(df_train, df_test):
+def group_median_predict(df_train, df_test):
     start_time = time.time()
     all_median = df_train['Demanda_uni_equil'].median()
 
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     #     df_train = df_train[df_train['Semana']<=time_quantile]
     #     # df_sub = group_mean_predict(df_train, df_test, vali, labels)
 
-    kaggle_group_median_predict(df_train, df_test)
+    group_median_predict(df_train, df_test)
 
     print 'total time=', time.time()-start_time
     print '\n\n------------------------------------------\n\n'
