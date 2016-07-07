@@ -85,7 +85,41 @@ def group_median_predict(df_train, df_test):
     df_test['Demanda_uni_equil'] = all_median
     df_test['Demanda_uni_equil'] = df_test.apply(\
             lambda x : predict_demand(x, product_agent_mean, product_mean, all_median), axis=1)
-    df_test.to_csv('output/kaggle_group_mean_'+ \
+    df_test.to_csv('output/product_agent_client_group_mean_'+ \
+            str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))+'.csv', \
+            columns=['id','Demanda_uni_equil'], index=False)
+    print 'predicting time=', time.time()-start_time
+
+def predict_demand_pname(x, product_agent_mean, product_mean, all_median):
+    # pid, aid, cid = x[['short_name','Agencia_ID','Cliente_ID']]
+    pid, aid, cid = x[0], x[1], x[2]
+    if (pid, aid, cid) in product_agent_mean.index:
+        return product_agent_mean[(pid, aid, cid)]
+    elif (pid, aid) in product_mean.index:
+        return product_mean[(pid, aid)]
+    else:
+        return all_median
+
+def group_median_predict_pname(df_train, df_test):
+    start_time = time.time()
+    all_median = df_train['Demanda_uni_equil'].median()
+
+    product_mean = df_train.groupby(['short_name','Agencia_ID'])['log_Demanda_uni_equil'].mean()
+    product_mean = product_mean.apply(lambda x:np.exp(x)*0.5793)
+
+    product_agent_mean = df_train.groupby(['short_name','Agencia_ID','Cliente_ID'])\
+            ['log_Demanda_uni_equil'].mean()
+    product_agent_mean = product_agent_mean.apply(lambda x:np.exp(x)-0.91)
+    print 'median calculating time=', time.time()-start_time
+
+    start_time = time.time()
+    df_test['Demanda_uni_equil'] = all_median
+
+    # pandas dataframe apply is slow for create series for each row
+    df_test['Demanda_uni_equil'] = np.apply_along_axis( \
+            (lambda x : predict_demand_pname(x, product_agent_mean, product_mean, all_median)),\
+            1, df_test[['short_name','Agencia_ID','Cliente_ID']].values)
+    df_test.to_csv('output/pname_agent_client_group_mean_'+ \
             str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))+'.csv', \
             columns=['id','Demanda_uni_equil'], index=False)
     print 'predicting time=', time.time()-start_time
@@ -96,8 +130,10 @@ if __name__ == '__main__':
     start_time = time.time()
     print 'reading data'
 
-    df_train = pandas.read_csv('data/train.csv')
-    df_test = pandas.read_csv('data/test.csv')
+    # df_train = pandas.read_csv('data/train.csv')
+    # df_test = pandas.read_csv('data/test.csv')
+    df_train = pandas.read_csv('data/train_join.csv')
+    df_test = pandas.read_csv('data/test_join.csv')
     # if sample_test: # use 10% data to evaluate
     #     df_train = df_train[df_train['Cliente_ID']%100==9]
     df_train['log_Demanda_uni_equil'] = df_train['Demanda_uni_equil'].apply(lambda x:np.log(x+1))
@@ -116,7 +152,8 @@ if __name__ == '__main__':
     #     df_train = df_train[df_train['Semana']<=time_quantile]
     #     # df_sub = group_mean_predict(df_train, df_test, vali, labels)
 
-    group_median_predict(df_train, df_test)
+    # group_median_predict(df_train, df_test)
+    group_median_predict_pname(df_train, df_test)
 
     print 'total time=', time.time()-start_time
     print '\n\n------------------------------------------\n\n'
