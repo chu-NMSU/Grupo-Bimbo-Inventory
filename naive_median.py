@@ -69,6 +69,7 @@ def predict_demand(x, product_agent_mean, product_mean, all_median):
     else:
         return all_median
 
+### https://www.kaggle.com/paulorzp/grupo-bimbo-inventory-demand/mean-median-lb-0-48/code
 def group_median_predict_pid(df_train, df_test):
     start_time = time.time()
     all_median = df_train['Demanda_uni_equil'].median()
@@ -100,6 +101,8 @@ def predict_demand_pname(x, product_agent_mean, product_mean, all_median):
     else:
         return all_median
 
+## https://www.kaggle.com/paulorzp/grupo-bimbo-inventory-demand/mean-median-lb-0-48/code
+## use product short name
 def group_median_predict_pname(df_train, df_test):
     start_time = time.time()
     all_median = df_train['Demanda_uni_equil'].median()
@@ -124,6 +127,38 @@ def group_median_predict_pname(df_train, df_test):
             columns=['id','Demanda_uni_equil'], index=False)
     print 'predicting time=', time.time()-start_time
 
+def log_means_predict_demand(x, product_client_agent_mean, product_ruta_mean, product_mean, all_mean):
+    pid, cid, aid, rid, pred = x[0], x[1], x[2], x[3], 0
+    if (pid,cid,aid) in product_client_agent_mean.index:
+        pred =  product_client_agent_mean[(pid,cid,aid)]
+    elif (pid,rid) in product_ruta_mean.index:
+        pred =  product_ruta_mean[(pid,rid)]
+    elif pid in product_mean.index:
+        pred =  product_mean[pid]
+    else:
+        pred =  all_mean
+    return np.expm1(pred)*0.9 ## TODO play with this factor
+
+## https://www.kaggle.com/apapiu/grupo-bimbo-inventory-demand/log-means/code
+def group_log_means_predict_pid(df_train, df_test):
+    start_time = time.time()
+    all_mean = df_train['log_Demanda_uni_equil'].mean()
+    product_mean = df_train.groupby(['Producto_ID'])['log_Demanda_uni_equil'].mean()
+    product_ruta_mean = df_train.groupby(['Producto_ID', 'Ruta_SAK'])['log_Demanda_uni_equil']\
+            .mean()
+    product_client_agent_mean = df_train.groupby(['Producto_ID', 'Cliente_ID', 'Agencia_ID'])\
+            ['log_Demanda_uni_equil'].mean()
+    print 'mean calculating time=', time.time()-start_time
+
+    start_time = time.time()
+    df_test['Demanda_uni_equil'] = np.apply_along_axis((lambda x : log_means_predict_demand(x, 
+        product_client_agent_mean, product_ruta_mean, product_mean, all_mean)),\
+            1, df_test[['Producto_ID','Cliente_ID','Agencia_ID','Ruta_SAK']].values)
+    df_test.to_csv('output/product_client_agent_ruta_group_mean_'+ \
+            str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))+'.csv', \
+            columns=['id','Demanda_uni_equil'], index=False)
+    print 'predicting time=', time.time()-start_time
+
 if __name__ == '__main__':
     # vali = int(sys.argv[1])==1
     # sample_test = int(sys.argv[2])==1
@@ -136,7 +171,7 @@ if __name__ == '__main__':
     df_test = pandas.read_csv('data/test_join.csv')
     # if sample_test: # use 10% data to evaluate
     #     df_train = df_train[df_train['Cliente_ID']%100==9]
-    df_train['log_Demanda_uni_equil'] = df_train['Demanda_uni_equil'].apply(lambda x:np.log(x+1))
+    df_train['log_Demanda_uni_equil'] = df_train['Demanda_uni_equil'].apply(lambda x:np.log1p(x))
 
     print 'reading time=', time.time()-start_time
 
@@ -153,7 +188,8 @@ if __name__ == '__main__':
     #     # df_sub = group_mean_predict(df_train, df_test, vali, labels)
 
     # group_median_predict_pid(df_train, df_test)
-    group_median_predict_pname(df_train, df_test)
+    # group_median_predict_pname(df_train, df_test)
+    group_log_means_predict_pid(df_train, df_test)
 
     print 'total time=', time.time()-start_time
     print '\n\n------------------------------------------\n\n'
