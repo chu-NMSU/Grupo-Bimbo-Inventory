@@ -10,6 +10,7 @@ from collections import defaultdict
 from joblib import Parallel, delayed
 import pandas
 import numpy as np
+import ConfigParser
 
 # TODO refactor
 def group_agg_cal(df_train, labels):
@@ -137,10 +138,11 @@ def log_means_predict_demand(x, product_client_agent_mean, product_ruta_mean, pr
         pred =  product_mean[pid]
     else:
         pred =  all_mean
-    return np.expm1(pred)*0.9 ## TODO play with this factor
+    return np.expm1(pred)*0.9+0.1 # *0.925+0.09 # 0.9, *0.945+0.075, *0.925+0.09
 
 ## https://www.kaggle.com/apapiu/grupo-bimbo-inventory-demand/log-means/code
 def group_log_means_predict_pid(df_train, df_test):
+    config = ConfigParser.ConfigParser()
     start_time = time.time()
     all_mean = df_train['log_Demanda_uni_equil'].mean()
     product_mean = df_train.groupby(['Producto_ID'])['log_Demanda_uni_equil'].mean()
@@ -154,7 +156,7 @@ def group_log_means_predict_pid(df_train, df_test):
     df_test['Demanda_uni_equil'] = np.apply_along_axis((lambda x : log_means_predict_demand(x, 
         product_client_agent_mean, product_ruta_mean, product_mean, all_mean)),\
             1, df_test[['Producto_ID','Cliente_ID','Agencia_ID','Ruta_SAK']].values)
-    df_test.to_csv('output/product_client_agent_ruta_group_mean_'+ \
+    df_test.to_csv('output/product_client_agent_ruta_group_log_mean_'+ \
             str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))+'.csv', \
             columns=['id','Demanda_uni_equil'], index=False)
     print 'predicting time=', time.time()-start_time
