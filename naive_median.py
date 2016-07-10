@@ -128,35 +128,56 @@ def group_median_predict_pname(df_train, df_test):
             columns=['id','Demanda_uni_equil'], index=False)
     print 'predicting time=', time.time()-start_time
 
-def log_means_predict_demand(x, product_client_agent_mean, product_ruta_mean, product_mean, all_mean):
-    pid, cid, aid, rid, pred = x[0], x[1], x[2], x[3], 0
-    if (pid,cid,aid) in product_client_agent_mean.index:
-        pred =  product_client_agent_mean[(pid,cid,aid)]
-    elif (pid,rid) in product_ruta_mean.index:
-        pred =  product_ruta_mean[(pid,rid)]
-    elif pid in product_mean.index:
-        pred =  product_mean[pid]
+def log_means_predict_demand(x, labels1_mean, labels2_mean, labels3_mean, all_mean, \
+        labels1_idx, labels2_idx, labels3_idx, mult_factor, plus_factor):
+    x_l1 = tuple(x[labels1_idx])
+    x_l2 = tuple(x[labels2_idx])
+    x_l3 = tuple(x[labels3_idx])
+
+    # print x_l1, ';', x_l2, ';', x_l3
+    pred = 0
+    if x_l1 in labels1_mean.index:
+        pred = labels1_mean[x_l1]
+    elif x_l2 in labels2_mean.index:
+        pred = labels2_mean[x_l2]
+    elif x_l3 in labels3_mean.index:
+        pred = labels3_mean[x_l3]
     else:
-        pred =  all_mean
-    return np.expm1(pred)*0.9+0.1 # *0.925+0.09 # 0.9, *0.945+0.075, *0.925+0.09
+        pred = all_mean
+
+    return np.expm1(pred)*mult_factor+plus_factor
 
 ## https://www.kaggle.com/apapiu/grupo-bimbo-inventory-demand/log-means/code
-def group_log_means_predict_pid(df_train, df_test):
+def group_log_means_predict_pid(df_train, df_test, config_path, config_name):
     config = ConfigParser.ConfigParser()
+    config.read(config_path)
+    labels1 = config.get(config_name, 'labels1').split(',')
+    labels2 = config.get(config_name, 'labels2').split(',')
+    labels3 = config.get(config_name, 'labels3').split(',')
+    labels = list(set(labels1 + labels2 + labels3))
+    print labels1, ';', labels2, ';', labels3, ';', labels
+    labels1_idx = [labels.index(i) for i in labels1]
+    labels2_idx = [labels.index(i) for i in labels2]
+    labels3_idx = [labels.index(i) for i in labels3]
+    print labels1_idx, ';', labels2_idx, ';', labels3_idx
+
+    mult_factor = config.getfloat(config_name, 'mult_factor')
+    plus_factor = config.getfloat(config_name, 'plus_factor')
+
     start_time = time.time()
     all_mean = df_train['log_Demanda_uni_equil'].mean()
-    product_mean = df_train.groupby(['Producto_ID'])['log_Demanda_uni_equil'].mean()
-    product_ruta_mean = df_train.groupby(['Producto_ID', 'Ruta_SAK'])['log_Demanda_uni_equil']\
-            .mean()
-    product_client_agent_mean = df_train.groupby(['Producto_ID', 'Cliente_ID', 'Agencia_ID'])\
-            ['log_Demanda_uni_equil'].mean()
+    labels1_mean = df_train.groupby(by=labels1)['log_Demanda_uni_equil'].mean()
+    labels2_mean = df_train.groupby(by=labels2)['log_Demanda_uni_equil'].mean()
+    labels3_mean = df_train.groupby(by=labels3)['log_Demanda_uni_equil'].mean()
+
     print 'mean calculating time=', time.time()-start_time
 
     start_time = time.time()
-    df_test['Demanda_uni_equil'] = np.apply_along_axis((lambda x : log_means_predict_demand(x, 
-        product_client_agent_mean, product_ruta_mean, product_mean, all_mean)),\
-            1, df_test[['Producto_ID','Cliente_ID','Agencia_ID','Ruta_SAK']].values)
-    df_test.to_csv('output/product_client_agent_ruta_group_log_mean_'+ \
+    df_test['Demanda_uni_equil'] = np.apply_along_axis((lambda x : log_means_predict_demand(x, \
+        labels1_mean, labels2_mean, labels3_mean, all_mean, \
+        labels1_idx, labels2_idx, labels3_idx, mult_factor, plus_factor)), \
+        1, df_test[labels].values)
+    df_test.to_csv('output/'+'_'.join(labels)+'_'+config_name+'_group_log_mean_'+ \
             str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))+'.csv', \
             columns=['id','Demanda_uni_equil'], index=False)
     print 'predicting time=', time.time()-start_time
@@ -164,6 +185,8 @@ def group_log_means_predict_pid(df_train, df_test):
 if __name__ == '__main__':
     # vali = int(sys.argv[1])==1
     # sample_test = int(sys.argv[2])==1
+    config_path = sys.argv[1]
+    config_name = sys.argv[2]
     start_time = time.time()
     print 'reading data'
 
@@ -191,7 +214,8 @@ if __name__ == '__main__':
 
     # group_median_predict_pid(df_train, df_test)
     # group_median_predict_pname(df_train, df_test)
-    group_log_means_predict_pid(df_train, df_test)
+    # group_log_means_predict_pid(df_train, df_test)
+    group_log_means_predict_pid(df_train, df_test, config_path, config_name)
 
     print 'total time=', time.time()-start_time
     print '\n\n------------------------------------------\n\n'
