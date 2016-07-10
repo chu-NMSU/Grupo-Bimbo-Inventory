@@ -11,64 +11,7 @@ from joblib import Parallel, delayed
 import pandas
 import numpy as np
 import ConfigParser
-
-# TODO refactor
-def group_agg_cal(df_train, labels):
-    start_time = time.time()
-    print 'calculate group agg', labels
-    N = len(labels)
-    train_groups = df_train.groupby(by=labels)
-    demand_group_agg = train_groups['Demanda_uni_equil'].median()
-    demand_group_agg.to_csv('data/demand_group_agg_tmp.csv')
-    return demand_group_agg
-
-# TODO refactor
-def predict_range(df_test, s_idx, labels):
-    print 'predicting', s_idx, s_idx+10000 , '/', df_test.shape[0]
-    SLE = 0
-    for i in range(s_idx, min(s_idx+10000, df_test.shape[0])):
-        test_labels = df_test.loc[df_test.index[i], labels].astype(str).values
-        pred = 0
-        for j in range(0, len(test_labels)):
-            pred = count_dict[j+1][tuple(test_labels[0:j+1])]
-            if pred!=0:
-                break
-        if pred==0:
-            pred = 5
-        if not vali:
-            df_test.loc[df_test.index[i], 'Demanda_uni_equil'] = pred
-        else:
-            SLE += np.log(pred+1)-np.log(df_test.loc[df_test.index[i], 'Demanda_uni_equil']+1)
-    if vali:
-        # print 'RMSLE=', RMSLE
-        return SLE
-    else:
-        return 0
-
-# TODO refactor. parallel predicting
-def group_mean_predict(df_train, df_test, vali, labels):
-    start_time = time.time()
-
-    global count_dict
-    count_dict = dict()
-    for i in range(len(labels)):
-        count_dict[i+1] = group_agg_cal(df_train, labels[0:i+1])
-
-    df_test['Demanda_uni_equil'] = 0
-    SLEs = Parallel(n_jobs=48)(delayed (predict_range) (df_test, s, labels) \
-            for s in np.arange(0, df_test.shape[0], 10000))
-    RMSLE = np.sqrt(sum(SLEs)/df_test.shape[0])
-    if vali:
-        print 'RMSLE=', RMSLE
-
-def predict_demand(x, product_agent_mean, product_mean, all_median):
-    pid, aid, cid = x[['Producto_ID','Agencia_ID','Cliente_ID']]
-    if (pid, aid, cid) in product_agent_mean.index:
-        return product_agent_mean[(pid, aid, cid)]
-    elif (pid, aid) in product_mean.index:
-        return product_mean[(pid, aid)]
-    else:
-        return all_median
+from sklearn.metrics import mean_squared_error as MSE
 
 ### https://www.kaggle.com/paulorzp/grupo-bimbo-inventory-demand/mean-median-lb-0-48/code
 def group_median_predict_pid(df_train, df_test):
@@ -148,7 +91,7 @@ def log_means_predict_demand(x, labels1_mean, labels2_mean, labels3_mean, all_me
     return np.expm1(pred)*mult_factor+plus_factor
 
 ## https://www.kaggle.com/apapiu/grupo-bimbo-inventory-demand/log-means/code
-def group_log_means_predict_pid(df_train, df_test, config_path, config_name):
+def group_log_means_predict_pid(df_train, df_test, config_path, config_name, vali):
     config = ConfigParser.ConfigParser()
     config.read(config_path)
     labels1 = config.get(config_name, 'labels1').split(',')
@@ -163,6 +106,7 @@ def group_log_means_predict_pid(df_train, df_test, config_path, config_name):
 
     mult_factor = config.getfloat(config_name, 'mult_factor')
     plus_factor = config.getfloat(config_name, 'plus_factor')
+    print 'mult_factor=', mult_factor, ' plus_factor=', plus_factor
 
     start_time = time.time()
     all_mean = df_train['log_Demanda_uni_equil'].mean()
@@ -173,49 +117,46 @@ def group_log_means_predict_pid(df_train, df_test, config_path, config_name):
     print 'mean calculating time=', time.time()-start_time
 
     start_time = time.time()
-    df_test['Demanda_uni_equil'] = np.apply_along_axis((lambda x : log_means_predict_demand(x, \
-        labels1_mean, labels2_mean, labels3_mean, all_mean, \
-        labels1_idx, labels2_idx, labels3_idx, mult_factor, plus_factor)), \
-        1, df_test[labels].values)
-    df_test.to_csv('output/'+'_'.join(labels)+'_'+config_name+'_group_log_mean_'+ \
-            str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))+'.csv', \
-            columns=['id','Demanda_uni_equil'], index=False)
+    if not vali:
+        df_test['Demanda_uni_equil']=np.apply_along_axis((lambda x:log_means_predict_demand(x, \
+            labels1_mean, labels2_mean, labels3_mean, all_mean, \
+            labels1_idx, labels2_idx, labels3_idx, mult_factor, plus_factor)), \
+            1, df_test[labels].values)
+        df_test.to_csv('output/'+'_'.join(labels)+'_'+config_name+'_group_log_mean_'+ \
+                str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))+'.csv', \
+                columns=['id','Demanda_uni_equil'], index=False)
+    else:
+        global pred_demand, true_demand
+        pred_demand = np.apply_along_axis((lambda x:log_means_predict_demand(x, \
+            labels1_mean, labels2_mean, labels3_mean, all_mean, \
+            labels1_idx, labels2_idx, labels3_idx, mult_factor, plus_factor)), \
+            1, df_test[labels].values)
+        true_demand = df_test['Demanda_uni_equil'].values
+        RMSLE = np.sqrt(MSE(np.log1p(pred_demand), np.log1p(true_demand)))
+        print 'RMSLE=', RMSLE
+
     print 'predicting time=', time.time()-start_time
 
 if __name__ == '__main__':
-    # vali = int(sys.argv[1])==1
     # sample_test = int(sys.argv[2])==1
     config_path = sys.argv[1]
-    config_name = sys.argv[2]
+    vali = int(sys.argv[2])==1
+    config_name_list = sys.argv[3::]
     start_time = time.time()
     print 'reading data'
 
-    # df_train = pandas.read_csv('data/train.csv')
-    # df_test = pandas.read_csv('data/test.csv')
     df_train = pandas.read_csv('data/train_join.csv')
     df_test = pandas.read_csv('data/test_join.csv')
-    # if sample_test: # use 10% data to evaluate
-    #     df_train = df_train[df_train['Cliente_ID']%100==9]
     df_train['log_Demanda_uni_equil'] = df_train['Demanda_uni_equil'].apply(lambda x:np.log1p(x))
 
     print 'reading time=', time.time()-start_time
 
-    start_time = time.time()
-    # if not vali and not sample_test:
-    #     df_test = pandas.read_csv('data/test_join.csv')
-    #     # df_sub = group_mean_predict(df_train, df_test, vali, labels)
-    #     # df_sub.to_csv(columns=['id','Demanda_uni_equil'], path_or_buf='output/'+'-'.join(labels)+\
-    #     #    '-'+str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))+'.csv', index=False)
-    # else:
-    #     time_quantile = 7 # train: week 3~7 test: week 8,9
-    #     df_test = df_train[df_train['Semana']>time_quantile]
-    #     df_train = df_train[df_train['Semana']<=time_quantile]
-    #     # df_sub = group_mean_predict(df_train, df_test, vali, labels)
-
-    # group_median_predict_pid(df_train, df_test)
-    # group_median_predict_pname(df_train, df_test)
-    # group_log_means_predict_pid(df_train, df_test)
-    group_log_means_predict_pid(df_train, df_test, config_path, config_name)
-
-    print 'total time=', time.time()-start_time
-    print '\n\n------------------------------------------\n\n'
+    for config_name in config_name_list:
+        if not vali:
+            group_log_means_predict_pid(df_train, df_test, config_path, config_name, vali)
+        else:
+            time_quantile = 7 # train: week 3~7 test: week 8,9
+            df_test = df_train[df_train['Semana']>time_quantile]
+            df_train = df_train[df_train['Semana']<=time_quantile]
+            group_log_means_predict_pid(df_train, df_test, config_path, config_name, vali)
+        print '\n\n------------------------------------------\n\n'
