@@ -131,9 +131,11 @@ def group_log_means_predict_pid(df_train, df_test, config_path, config_name, val
             labels1_mean, labels2_mean, labels3_mean, all_mean, \
             labels1_idx, labels2_idx, labels3_idx, mult_factor, plus_factor)), \
             1, df_test[labels].values)
+        start_time = time.time()
         true_demand = df_test['Demanda_uni_equil'].values
         RMSLE = np.sqrt(MSE(np.log1p(pred_demand), np.log1p(true_demand)))
         print 'RMSLE=', RMSLE
+        print 'RMSLE calculating time=', time.time()-start_time
 
     print 'predicting time=', time.time()-start_time
 
@@ -150,13 +152,14 @@ if __name__ == '__main__':
     df_train['log_Demanda_uni_equil'] = df_train['Demanda_uni_equil'].apply(lambda x:np.log1p(x))
 
     print 'reading time=', time.time()-start_time
+    if vali:
+        time_quantile = 7 # train: week 3~7 test: week 8,9
+        df_test = df_train[df_train['Semana']>time_quantile]
+        df_train = df_train[df_train['Semana']<=time_quantile]
 
     for config_name in config_name_list:
         if not vali:
             group_log_means_predict_pid(df_train, df_test, config_path, config_name, vali)
         else:
-            time_quantile = 7 # train: week 3~7 test: week 8,9
-            df_test = df_train[df_train['Semana']>time_quantile]
-            df_train = df_train[df_train['Semana']<=time_quantile]
             group_log_means_predict_pid(df_train, df_test, config_path, config_name, vali)
         print '\n\n------------------------------------------\n\n'
