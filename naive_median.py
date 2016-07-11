@@ -98,11 +98,11 @@ def group_log_means_predict_pid(df_train, df_test, config_path, config_name, val
     labels2 = config.get(config_name, 'labels2').split(',')
     labels3 = config.get(config_name, 'labels3').split(',')
     labels = list(set(labels1 + labels2 + labels3))
-    print labels1, ';', labels2, ';', labels3, ';', labels
+    print config_name, ';', labels1, ';', labels2, ';', labels3, ';', labels
     labels1_idx = [labels.index(i) for i in labels1]
     labels2_idx = [labels.index(i) for i in labels2]
     labels3_idx = [labels.index(i) for i in labels3]
-    print labels1_idx, ';', labels2_idx, ';', labels3_idx
+    # print labels1_idx, ';', labels2_idx, ';', labels3_idx
 
     mult_factor = config.getfloat(config_name, 'mult_factor')
     plus_factor = config.getfloat(config_name, 'plus_factor')
@@ -126,21 +126,18 @@ def group_log_means_predict_pid(df_train, df_test, config_path, config_name, val
                 str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))+'.csv', \
                 columns=['id','Demanda_uni_equil'], index=False)
     else:
-        global pred_demand, true_demand
+        # global pred_demand, true_demand
         pred_demand = np.apply_along_axis((lambda x:log_means_predict_demand(x, \
             labels1_mean, labels2_mean, labels3_mean, all_mean, \
             labels1_idx, labels2_idx, labels3_idx, mult_factor, plus_factor)), \
             1, df_test[labels].values)
-        start_time = time.time()
         true_demand = df_test['Demanda_uni_equil'].values
         RMSLE = np.sqrt(MSE(np.log1p(pred_demand), np.log1p(true_demand)))
         print 'RMSLE=', RMSLE
-        print 'RMSLE calculating time=', time.time()-start_time
 
     print 'predicting time=', time.time()-start_time
 
 if __name__ == '__main__':
-    # sample_test = int(sys.argv[2])==1
     config_path = sys.argv[1]
     vali = int(sys.argv[2])==1
     config_name_list = sys.argv[3::]
@@ -154,7 +151,8 @@ if __name__ == '__main__':
     print 'reading time=', time.time()-start_time
     if vali:
         time_quantile = 7 # train: week 3~7 test: week 8,9
-        df_test = df_train[df_train['Semana']>time_quantile]
+        df_test = df_train[(df_train['Semana']>time_quantile) & \
+            (df_train['Cliente_ID'].isin(pandas.unique(df_test['Cliente_ID'])))]
         df_train = df_train[df_train['Semana']<=time_quantile]
 
     for config_name in config_name_list:

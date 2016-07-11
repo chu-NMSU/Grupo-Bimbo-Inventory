@@ -9,7 +9,7 @@ from nltk.stem.snowball import SnowballStemmer
 stemmer = SnowballStemmer("spanish")
 
 products  =  pandas.read_csv("data/producto_tabla.csv")
-# extract fields
+# extract fields. () means a regular expression group, it will only return the matched group
 products['short_name'] = products.NombreProducto.str.extract('^(\D*)', expand=False)
 products['brand'] = products.NombreProducto.str.extract('^.+\s(\D+) \d+$', expand=False)
 w = products.NombreProducto.str.extract('(\d+)(Kg|g)', expand=True)

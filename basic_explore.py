@@ -23,6 +23,10 @@ def extract_client(df_train):
     train_groups = df_train.groupby(['Cliente_ID'])
     Parallel(n_jobs=48) (delayed (save_group) (name, group) for name, group in train_groups)
 
+# TODO
+def explore_client(cid):
+    pass
+
 if __name__=='__main__':
     print 'reading data'
     df_train = pandas.read_csv('data/train.csv')
