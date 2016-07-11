@@ -23,7 +23,7 @@ def extract_client(df_train):
     train_groups = df_train.groupby(['Cliente_ID'])
     Parallel(n_jobs=48) (delayed (save_group) (name, group) for name, group in train_groups)
 
-# TODO
+# TODO explore each client data here
 def explore_client(cid):
     pass
 
