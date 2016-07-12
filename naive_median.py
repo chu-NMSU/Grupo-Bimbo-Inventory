@@ -69,16 +69,8 @@ def group_log_means_predict_pid(df_train, df_test, config_path, config_name, val
     if 'level' in config_name:
         mult_factor1, mult_factor2, mult_factor3, mult_factor4 = \
                 [config.getfloat(config_name, 'mult_factor'+str(i)) for i in range(1,5)]
-                # config.getfloat(config_name, 'mult_factor1'), \
-                # config.getfloat(config_name, 'mult_factor2'), \
-                # config.getfloat(config_name, 'mult_factor3'), \
-                # config.getfloat(config_name, 'mult_factor4')
         plus_factor1, plus_factor2, plus_factor3, plus_factor4 = \
                 [config.getfloat(config_name, 'plus_factor'+str(i)) for i in range(1,5)]
-                # config.getfloat(config_name, 'plus_factor1'), \
-                # config.getfloat(config_name, 'plus_factor2'), \
-                # config.getfloat(config_name, 'plus_factor3'), \
-                # config.getfloat(config_name, 'plus_factor4')
     else:
         mult_factor1 = mult_factor2 = mult_factor3 = mult_factor4 = \
                 config.getfloat(config_name, 'mult_factor')
