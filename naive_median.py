@@ -40,13 +40,13 @@ def log_means_predict_demand(x, labels1_mean, labels2_mean, labels3_mean, all_me
 
     pred = 0
     if x_l1 in labels1_mean.index:
-        pred = labels1_mean[x_l1]*mult_factor1+plus_factor1
+        pred = np.expm1(labels1_mean[x_l1])*mult_factor1 + plus_factor1
     elif x_l2 in labels2_mean.index:
-        pred = labels2_mean[x_l2]*mult_factor2+plus_factor2
+        pred = np.expm1(labels2_mean[x_l2])*mult_factor2 + plus_factor2
     elif x_l3 in labels3_mean.index:
-        pred = labels3_mean[x_l3]*mult_factor3+plus_factor3
+        pred = np.expm1(labels3_mean[x_l3])*mult_factor3 + plus_factor3
     else:
-        pred = all_mean*mult_factor4+plus_factor4
+        pred = np.expm1(all_mean)*mult_factor4 + plus_factor4
 
     return pred
 
