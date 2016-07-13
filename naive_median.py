@@ -13,7 +13,7 @@ import numpy as np
 import ConfigParser
 from sklearn.metrics import mean_squared_error as MSE
 
-def log_means_predict_demand(x, labels1_mean, labels2_mean, labels3_mean, all_mean, \
+def log_means_pred_demand_func(x, labels1_mean, labels2_mean, labels3_mean, all_mean, \
         labels1_idx, labels2_idx, labels3_idx, mult_factor, plus_factor):
     x_l1 = tuple(x[labels1_idx])
     x_l2 = tuple(x[labels2_idx])
@@ -31,7 +31,7 @@ def log_means_predict_demand(x, labels1_mean, labels2_mean, labels3_mean, all_me
 
     return np.expm1(pred)*mult_factor+plus_factor
 
-def log_means_predict_demand(x, labels1_mean, labels2_mean, labels3_mean, all_mean, \
+def log_means_pred_demand_func(x, labels1_mean, labels2_mean, labels3_mean, all_mean, \
         labels1_idx, labels2_idx, labels3_idx, mult_factor1, plus_factor1, \
         mult_factor2,plus_factor2, mult_factor3,plus_factor3, mult_factor4, plus_factor4):
     x_l1 = tuple(x[labels1_idx])
@@ -57,12 +57,7 @@ def group_log_means_predict_pid(df_train, df_test, config_path, config_name, val
     labels1 = config.get(config_name, 'labels1').split(',')
     labels2 = config.get(config_name, 'labels2').split(',')
     labels3 = config.get(config_name, 'labels3').split(',')
-    labels = list(set(labels1 + labels2 + labels3))
-    print config_name, ';', labels1, ';', labels2, ';', labels3, ';', labels
-    labels1_idx = [labels.index(i) for i in labels1]
-    labels2_idx = [labels.index(i) for i in labels2]
-    labels3_idx = [labels.index(i) for i in labels3]
-    # print labels1_idx, ';', labels2_idx, ';', labels3_idx
+    print config_name, ':', labels1, ';', labels2, ';', labels3
 
     mult_factor1 = mult_factor2 = mult_factor3 = mult_factor4 = 1
     plus_factor1 = plus_factor2 = plus_factor3 = plus_factor4 = 0
@@ -81,7 +76,18 @@ def group_log_means_predict_pid(df_train, df_test, config_path, config_name, val
     print 'mult_factor3=', mult_factor3, ' plus_factor3=', plus_factor3
     print 'mult_factor4=', mult_factor4, ' plus_factor4=', plus_factor4
 
+    predict(df_train, df_test, vali, labels1, labels2, labels3, mult_factor1,plus_factor1, \
+            mult_factor2,plus_factor2, mult_factor3,plus_factor3, mult_factor4,plus_factor4)
+
+def predict(df_train, df_test, vali, labels1, labels2, labels3, mult_factor1,plus_factor1, \
+            mult_factor2,plus_factor2, mult_factor3,plus_factor3, mult_factor4,plus_factor4):
     start_time = time.time()
+    labels = list(set(labels1 + labels2 + labels3))
+    labels1_idx = [labels.index(i) for i in labels1]
+    labels2_idx = [labels.index(i) for i in labels2]
+    labels3_idx = [labels.index(i) for i in labels3]
+    # print labels1_idx, ';', labels2_idx, ';', labels3_idx
+
     all_mean = df_train['log_Demanda_uni_equil'].mean()
     labels1_mean = df_train.groupby(by=labels1)['log_Demanda_uni_equil'].mean()
     labels2_mean = df_train.groupby(by=labels2)['log_Demanda_uni_equil'].mean()
@@ -91,7 +97,7 @@ def group_log_means_predict_pid(df_train, df_test, config_path, config_name, val
 
     start_time = time.time()
     if not vali:
-        df_test['Demanda_uni_equil']=np.apply_along_axis((lambda x:log_means_predict_demand(x, \
+        df_test['Demanda_uni_equil']=np.apply_along_axis((lambda x:log_means_pred_demand_func(x,\
             labels1_mean, labels2_mean, labels3_mean, all_mean, \
             labels1_idx, labels2_idx, labels3_idx, mult_factor1,plus_factor1, \
             mult_factor2,plus_factor2, mult_factor3,plus_factor3, mult_factor4,plus_factor4)), \
@@ -101,7 +107,7 @@ def group_log_means_predict_pid(df_train, df_test, config_path, config_name, val
                 columns=['id','Demanda_uni_equil'], index=False)
     else:
         # global pred_demand, true_demand
-        pred_demand = np.apply_along_axis((lambda x:log_means_predict_demand(x, \
+        pred_demand = np.apply_along_axis((lambda x:log_means_pred_demand_func(x, \
             labels1_mean, labels2_mean, labels3_mean, all_mean, \
             labels1_idx, labels2_idx, labels3_idx, mult_factor1,plus_factor1, \
             mult_factor2,plus_factor2, mult_factor3,plus_factor3, mult_factor4,plus_factor4)), \
